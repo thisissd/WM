@@ -1,0 +1,17 @@
+/* Number of weekly active users for the latest full week (Monday - Sunday). WAU is calculated by counting registered users with >60 seconds dwell time between Monday - Sunday 
+Assumption: Dwell_time is in seconds 
+Assumption: Only registered users can view content & Ads_User_Id is a unique user identifier */
+
+SET DATEFIRST 1										-- sets first day of the week to Monday
+WITH tmp AS (
+	SELECT SUM(Dwell_time) OVER (PARTITION BY Ads_User_Id) AS total_dwell_time
+	FROM Ad_Service_Interaction_Data)							-- gets total dwell time per user
+SELECT COUNT(DISTINCT Ads_User_Id) AS weekly_active_users, 
+       CONVERT(date, Timestamp) AS consumption_date 
+FROM tmp, Ad_Service_Interaction_Data
+WHERE 
+consumption_date >= DATEADD(week, -1, DATEADD(day, 1-DATEPART(weekday, GETDATE()), CONVERT(date, GETDATE())))		-- >= Last week's Monday (this week's Monday from Query#1 minus one week)
+AND 
+consumption_date <  DATEADD(day, 1-DATEPART(weekday, GETDATE()), CONVERT(date, GETDATE()))				-- < This week's Monday (from Query#1)			
+AND
+total_dwell_time > 60
