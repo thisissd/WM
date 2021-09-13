@@ -1,0 +1,44 @@
+/* Top 5 pieces of content from each content type consumed this week by only active users (using definition from Query 2) 
+Assumption: Active users are defined based on last full week's dwell time */
+
+SET DATEFIRST 1
+
+SELECT 	B.Content_Id,
+	B.Content_Type,
+	B.consumption_date,
+	B.Ads_User_Id,
+	ROW_NUMBER() OVER (PARTITION BY B.Content_Type ORDER BY (COUNT(DISTINCT B.Ads_User_Id) OVER (PARTITION BY B.Content_Id)) DESC) as content_ranking
+FROM 
+
+(														-- Start with active users as defined by Ad_Service_Interaction_Data table
+(WITH tmp AS (
+	SELECT SUM(Dwell_time) OVER (PARTITION BY Ads_User_Id) AS total_dwell_time
+	FROM Ad_Service_Interaction_Data)							
+SELECT   Ads_User_Id, CONVERT(date, Timestamp) AS consumption_date 
+FROM tmp, Ad_Service_Interaction_Data
+WHERE 
+consumption_date >= DATEADD(week, -1, DATEADD(day, 1-DATEPART(weekday, GETDATE()), CONVERT(date, GETDATE())))		-- >= Last week's Monday (this week's Monday from Query#1 minus one week)
+AND 
+consumption_date <  DATEADD(day, 1-DATEPART(weekday, GETDATE()), CONVERT(date, GETDATE()))				-- < This week's Monday (from Query#1)			
+AND
+total_dwell_time > 60) AS A
+
+LEFT OUTER JOIN Page_Impressions
+ON Page_Impressions.Ads_User_Id = A.Ads_User_Id
+LEFT OUTER JOIN Content_Metadata
+ON Page_Impressions.Content_Id = Content_Metadata.Content_Id
+) AS B
+
+WHERE 												-- we want to return content consumed this week
+B.consumption_date >= DATEADD(day, 1-DATEPART(weekday, GETDATE()), CONVERT(date, GETDATE()))		-- >= This week's Monday
+AND 
+B.consumption_date <  DATEADD(day, 8-DATEPART(weekday, GETDATE()), CONVERT(date, GETDATE()))		-- < Next week's Monday	
+AND 
+content_ranking <=5;
+
+
+
+
+
+
+
