@@ -1,0 +1,28 @@
+/* Query 1: Top 5 most popular pieces of content consumed this week 
+Assumption: This week is the current week we are in (starting with Monday) 
+Assumption: Content_Id stays the same across versions */
+
+SET DATEFIRST 1 						-- sets first day of the week to Monday
+SELECT  Content_Id, 
+	CONVERT(date, Timestamp) AS consumption_date,	-- removes time portion of the datetime object
+	COUNT(DISTINCT Ads_User_Id) AS total_consumption 	-- collapses the count to unique user ids as one user might have multiple sessions
+FROM Page_Impressions
+
+WHERE 							-- where condition defines the current week, breakdown is presented below
+(consumption_date >= DATEADD(day, 1-DATEPART(weekday, GETDATE()), CONVERT(date, GETDATE()))		-- this week's Monday	
+AND consumption_date <  DATEADD(day, 8-DATEPART(weekday, GETDATE()), CONVERT(date, GETDATE())))	-- next week's Monday		
+
+GROUP BY Content_Id					-- returns total_consumption per content_id					
+ORDER BY total_consumption DESC				-- ranks by total_consumption, highest to lowest				
+LIMIT 5;							-- presents top 5 contents
+
+
+/*
+Defining current week : Explanation
+DATEPART(weekday, GETDATE()) returns the current day of the week as an integer (for example, if today is Tuesday, returns 2)
+DATEADD(day, 1-DATEPART(weekday, GETDATE()), CONVERT(date, GETDATE())) adds 1-DATEPART(weekday, GETDATE()) many days to current date (for example, if today is Tuesday, it adds -1 days and sets the date to this week's Monday)
+DATEADD(day, 8-DATEPART(weekday, GETDATE()), CONVERT(date, GETDATE())) adds 8-DATEPART(weekday, GETDATE()) many days to current date (for example, if today is Tuesday, it adds 6 days and sets the date to next week's Monday)
+*/
+
+
+
